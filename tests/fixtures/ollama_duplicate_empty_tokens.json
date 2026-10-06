@@ -1,0 +1,165 @@
+{
+  "model": "nimble",
+  "created_at": "2026-10-06T02:08:46.422459Z",
+  "response": "A",
+  "done": true,
+  "done_reason": "length",
+  "total_duration": 140509750,
+  "load_duration": 10851416,
+  "prompt_eval_count": 947,
+  "prompt_eval_cached_count": 943,
+  "prompt_eval_duration": 111922000,
+  "eval_count": 1,
+  "eval_duration": 1000,
+  "logprobs": [
+    {
+      "token": "A",
+      "logprob": -0.3103792667388916,
+      "bytes": [
+        65
+      ],
+      "top_logprobs": [
+        {
+          "token": "A",
+          "logprob": -0.3103792667388916,
+          "bytes": [
+            65
+          ]
+        },
+        {
+          "token": "C",
+          "logprob": -1.3570749759674072,
+          "bytes": [
+            67
+          ]
+        },
+        {
+          "token": "B",
+          "logprob": -4.731472015380859,
+          "bytes": [
+            66
+          ]
+        },
+        {
+          "token": "D",
+          "logprob": -8.412169456481934,
+          "bytes": [
+            68
+          ]
+        },
+        {
+          "token": "E",
+          "logprob": -9.753085136413574,
+          "bytes": [
+            69
+          ]
+        },
+        {
+          "token": "H",
+          "logprob": -10.62331771850586,
+          "bytes": [
+            72
+          ]
+        },
+        {
+          "token": "F",
+          "logprob": -10.84527587890625,
+          "bytes": [
+            70
+          ]
+        },
+        {
+          "token": "S",
+          "logprob": -11.11317253112793,
+          "bytes": [
+            83
+          ]
+        },
+        {
+          "token": "M",
+          "logprob": -11.11392593383789,
+          "bytes": [
+            77
+          ]
+        },
+        {
+          "token": "V",
+          "logprob": -11.253957748413086,
+          "bytes": [
+            86
+          ]
+        },
+        {
+          "token": "G",
+          "logprob": -11.26307201385498,
+          "bytes": [
+            71
+          ]
+        },
+        {
+          "token": "L",
+          "logprob": -11.311397552490234,
+          "bytes": [
+            76
+          ]
+        },
+        {
+          "token": "P",
+          "logprob": -11.31707763671875,
+          "bytes": [
+            80
+          ]
+        },
+        {
+          "token": "<think>",
+          "logprob": -11.628217697143555,
+          "bytes": [
+            60,
+            116,
+            104,
+            105,
+            110,
+            107,
+            62
+          ]
+        },
+        {
+          "token": "",
+          "logprob": -11.632696151733398
+        },
+        {
+          "token": "R",
+          "logprob": -11.643302917480469,
+          "bytes": [
+            82
+          ]
+        },
+        {
+          "token": "I",
+          "logprob": -11.645002365112305,
+          "bytes": [
+            73
+          ]
+        },
+        {
+          "token": "",
+          "logprob": -11.654084205627441
+        },
+        {
+          "token": "O",
+          "logprob": -11.69577407836914,
+          "bytes": [
+            79
+          ]
+        },
+        {
+          "token": "T",
+          "logprob": -11.70852279663086,
+          "bytes": [
+            84
+          ]
+        }
+      ]
+    }
+  ]
+}

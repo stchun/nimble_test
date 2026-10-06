@@ -344,13 +344,21 @@ def parse_classification(data: dict, schema: dict, field: str,
         if not isinstance(response, str) or not isinstance(entries, list) or not entries:
             raise ValueError()
         top = {}
+        token_weights = []
+        duplicate_codes = set()
         for entry in entries:
             token, lp = entry["token"], entry["logprob"]
-            if not isinstance(token, str) or token in top:
+            if not isinstance(token, str):
                 raise ValueError()
             if isinstance(lp, bool) or not isinstance(lp, (int, float)) or not math.isfinite(lp) or lp > 0:
                 raise ValueError()
-            top[token] = lp
+            # 서로 다른 내부 토큰이 같은 빈 문자열로 표시될 수 있다.
+            # 전체 질량은 문자열로 중복 제거하지 않고 각 항목을 합산한다.
+            token_weights.append(math.exp(lp))
+            if token in codes:
+                if token in top:
+                    duplicate_codes.add(token)
+                top[token] = max(top.get(token, -math.inf), lp)
     except (KeyError, IndexError, TypeError, ValueError) as exc:
         raise RuntimeError(f"{field}: logprobs 응답 형식이 올바르지 않습니다.") from exc
     missing = [code for code in codes if code not in top]
@@ -358,11 +366,14 @@ def parse_classification(data: dict, schema: dict, field: str,
                for code, value in codes.items()}
     total = sum(weights.values())
     reasons = []
+    if duplicate_codes:
+        reasons.append("ambiguous_candidate_tokens")
     if response not in codes:
         reasons.append("invalid_generated_code")
     if missing:
         reasons.append("missing_candidates")
-    if total < min_candidate_mass or total > 1.000001 or sum(math.exp(lp) for lp in top.values()) > 1.000001:
+    top_mass = math.fsum(token_weights)
+    if total < min_candidate_mass or total > 1.000001 or top_mass > 1.000001:
         reasons.append("invalid_candidate_mass")
     if response in codes and total and weights[codes[response]] < max(weights.values()):
         reasons.append("generated_code_disagrees")
@@ -370,6 +381,7 @@ def parse_classification(data: dict, schema: dict, field: str,
     return {"prediction": codes[response] if not reasons else None,
             "status": "abstained" if reasons else "ok", "reasons": reasons,
             "generated_code": response, "candidate_mass": total,
+            "top_token_mass": top_mass, "duplicate_codes": sorted(duplicate_codes),
             "missing_codes": missing, "probabilities": probs,
             "probability_kind": "conditional_on_observed_candidates"}
 

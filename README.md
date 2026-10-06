@@ -50,10 +50,10 @@ uv run main.py --ticker AAPL --name Apple --currency USD --json --output-dir run
 다음 경우 `prediction: null`, `status: abstained`로 판단을 보류합니다.
 
 - 생성 코드가 허용 선택지에 없거나 가장 높은 후보와 불일치
-- 후보 코드가 top_logprobs에서 누락
+- 후보 코드가 top_logprobs에서 누락하거나 같은 후보 코드가 중복되어 모호함
 - 후보 확률 질량이 0.5 미만이거나 1을 초과
 
-0.5는 실험용 휴리스틱이며 성능 검증으로 보정된 기준이 아닙니다. 응답 구조가 잘못되면 오류로 종료합니다. 누락된 후보는 `missing_codes`에 기록하고, 유효하지 않은 응답을 BUY/HOLD/SELL로 강제 변환하지 않습니다.
+0.5는 실험용 휴리스틱이며 성능 검증으로 보정된 기준이 아닙니다. 선택지 밖의 토큰은 빈 문자열 등 같은 문자열로 여러 번 표시되어도 허용합니다. `top_token_mass`는 원본 항목별 확률을 모두 합산하므로 중복 문자열의 질량도 빠뜨리지 않습니다. 후보 코드가 중복되면 `ambiguous_candidate_tokens`로 판단을 보류하고 `duplicate_codes`에 기록합니다. 응답 구조가 잘못되면 오류로 종료합니다. 누락된 후보는 `missing_codes`에 기록하고, 유효하지 않은 응답을 BUY/HOLD/SELL로 강제 변환하지 않습니다.
 
 ## 실행 기록
 

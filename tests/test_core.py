@@ -1,6 +1,7 @@
 import json
 import math
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 import pandas as pd
 import main
@@ -17,6 +18,34 @@ def response(code='A', entries=None):
 
 
 class CoreTests(unittest.TestCase):
+    def test_real_ollama_duplicate_empty_tokens(self):
+        fixture = Path(__file__).parent / 'fixtures/ollama_duplicate_empty_tokens.json'
+        data = json.loads(fixture.read_text())
+        r = main.parse_classification(data, main.SCHEMA, 'action')
+        self.assertEqual(r['prediction'], 'BUY')
+        self.assertEqual(r['status'], 'ok')
+        entries = data['logprobs'][0]['top_logprobs']
+        self.assertAlmostEqual(r['top_token_mass'], math.fsum(math.exp(e['logprob']) for e in entries))
+
+    def test_non_candidate_duplicates_preserve_mass_check(self):
+        entries = response()['logprobs'][0]['top_logprobs'] + [
+            {'token': '', 'logprob': math.log(.06)},
+            {'token': '', 'logprob': math.log(.06)},
+        ]
+        r = main.parse_classification(response(entries=entries), main.SCHEMA, 'action')
+        self.assertAlmostEqual(r['top_token_mass'], 1.02)
+        self.assertIn('invalid_candidate_mass', r['reasons'])
+        self.assertIsNone(r['prediction'])
+
+    def test_duplicate_candidates_abstain(self):
+        entries = response()['logprobs'][0]['top_logprobs'] + [
+            {'token': 'A', 'logprob': math.log(.01)},
+        ]
+        r = main.parse_classification(response(entries=entries), main.SCHEMA, 'action')
+        self.assertEqual(r['duplicate_codes'], ['A'])
+        self.assertIn('ambiguous_candidate_tokens', r['reasons'])
+        self.assertIsNone(r['prediction'])
+
     def test_invalid_code_abstains(self):
         self.assertIsNone(main.parse_classification(response('X'),main.SCHEMA,'action')['prediction'])
 
