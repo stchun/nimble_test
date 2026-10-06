@@ -62,12 +62,56 @@ SCHEMA = {
 }
 
 
+class RecoverablePriceError(ValueError):
+    """소스 재조회/복구를 시도할 수 있는 OHLCV 값 오류."""
+
+
 def fetch_prices(ticker: str, period: str) -> pd.DataFrame:
+    source = yf.Ticker(ticker)
+    kwargs = {"period": period, "interval": "1d", "auto_adjust": True}
     try:
-        df = yf.Ticker(ticker).history(period=period, interval="1d", auto_adjust=True)
+        original = source.history(**kwargs)
     except Exception as exc:
         raise RuntimeError(f"{ticker}: 시세 수집 실패: {exc}") from exc
-    return validate_prices(df)
+    try:
+        validated = validate_prices(original)
+    except RecoverablePriceError as initial_error:
+        print(f"주의: {ticker}: {initial_error} yfinance repair=True로 복구를 시도합니다.",
+              file=sys.stderr)
+        try:
+            repaired = source.history(**kwargs, repair=True)
+        except Exception as exc:
+            raise RuntimeError(f"{ticker}: 데이터 복구 조회 실패: {exc}; 최초 오류: {initial_error}") from exc
+        try:
+            if not isinstance(repaired.index, pd.DatetimeIndex) or repaired.index.has_duplicates or repaired.index.hasnans:
+                raise ValueError("복구 결과의 날짜 인덱스가 올바르지 않습니다.")
+            if not original.index.difference(repaired.index).empty:
+                raise ValueError("복구 전후 일봉 날짜가 달라졌습니다: 원본 날짜가 누락됐습니다.")
+            added_dates = [date.isoformat() for date in repaired.index.difference(original.index)]
+            # 복구가 추가한 일봉은 관측 범위 변화 방지를 위해 사용하지 않는다.
+            validated = validate_prices(repaired.reindex(original.index))
+        except ValueError as exc:
+            raise RuntimeError(f"{ticker}: repair=True 복구 후에도 검증 실패: {exc}; 최초 오류: {initial_error}") from exc
+        columns = ["Open", "High", "Low", "Close", "Volume"]
+        before = original[columns].apply(pd.to_numeric, errors="coerce")
+        changed = ~((before == validated) | (before.isna() & validated.isna())).all(axis=1)
+        changes = []
+        for date in before.index[changed]:
+            def row_values(frame):
+                return {col: float(frame.loc[date, col]) if math.isfinite(frame.loc[date, col]) else None
+                        for col in columns}
+            changes.append({"date": date.isoformat(), "before": row_values(before),
+                            "after": row_values(validated)})
+        validated.attrs["recovery"] = {"attempted": True, "status": "recovered",
+                                      "method": "yfinance.history(repair=True)",
+                                      "initial_error": str(initial_error),
+                                      "changed_rows": len(changes), "changes": changes,
+                                      "excluded_added_dates": added_dates}
+        print(f"주의: {ticker}: 데이터 복구 및 재검증 완료 ({len(changes)}개 일봉 변경).",
+              file=sys.stderr)
+    else:
+        validated.attrs["recovery"] = {"attempted": False, "status": "not_needed"}
+    return validated
 
 
 def resolve_metadata(ticker: str, name: str | None, currency: str | None) -> dict:
@@ -95,7 +139,10 @@ def prepare_prices(df: pd.DataFrame, now=None, include_current=False) -> tuple:
     today = local.date()
     if df.index[-1].date() > today:
         raise ValueError("미래 날짜의 일봉이 있습니다.")
+    recovery = df.attrs.get("recovery", {"attempted": False, "status": "not_needed"})
     warnings = []
+    if recovery["attempted"]:
+        warnings.append(f"yfinance 데이터 복구 후 재검증 통과 ({recovery['changed_rows']}개 일봉 변경).")
     current_rows = df.index.date == today
     if current_rows.any():
         if include_current:
@@ -112,6 +159,7 @@ def prepare_prices(df: pd.DataFrame, now=None, include_current=False) -> tuple:
     return df, {"as_of": df.index[-1].isoformat(), "age_calendar_days": age,
                 "timezone": str(df.index.tz or "UTC (fallback)"),
                 "current_day_policy": "include" if include_current else "exclude",
+                "recovery": recovery,
                 "warnings": warnings}
 
 
@@ -151,14 +199,19 @@ def validate_prices(df: pd.DataFrame) -> pd.DataFrame:
     try:
         values = df[columns].astype(float)
     except (TypeError, ValueError) as exc:
-        raise ValueError("OHLCV는 숫자여야 합니다.") from exc
+        raise RecoverablePriceError("OHLCV는 숫자여야 합니다.") from exc
     if not values.map(math.isfinite).all().all():
-        raise ValueError("시세에 결측치 또는 무한대가 있습니다.")
+        raise RecoverablePriceError("시세에 결측치 또는 무한대가 있습니다.")
     if (values[columns[:4]] <= 0).any().any() or (values.Volume < 0).any():
-        raise ValueError("가격은 양수, 거래량은 0 이상이어야 합니다.")
-    if ((values.High < values[["Open", "Close", "Low"]].max(axis=1)) |
-        (values.Low > values[["Open", "Close", "High"]].min(axis=1))).any():
-        raise ValueError("OHLC 고가·저가 관계가 올바르지 않습니다.")
+        raise RecoverablePriceError("가격은 양수, 거래량은 0 이상이어야 합니다.")
+    invalid = ((values.High < values[["Open", "Close", "Low"]].max(axis=1)) |
+               (values.Low > values[["Open", "Close", "High"]].min(axis=1)))
+    if invalid.any():
+        examples = "; ".join(f"{date.isoformat()}: Open={row.Open:.8g}, High={row.High:.8g}, "
+                             f"Low={row.Low:.8g}, Close={row.Close:.8g}"
+                             for date, row in values.loc[invalid].head(3).iterrows())
+        raise RecoverablePriceError(f"OHLC 고가·저가 관계가 올바르지 않습니다 "
+                                    f"({int(invalid.sum())}개 일봉; {examples}).")
     return values
 
 

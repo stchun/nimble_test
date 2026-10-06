@@ -8,6 +8,70 @@ from test_core import prices
 
 
 class IOTests(unittest.TestCase):
+    def test_valid_prices_skip_repair(self):
+        with patch('main.yf.Ticker') as ticker:
+            ticker.return_value.history.return_value=prices()
+            result=main.fetch_prices('TEST','2y')
+            self.assertEqual(ticker.return_value.history.call_count,1)
+            self.assertFalse(result.attrs['recovery']['attempted'])
+
+    def test_ohlc_repair_success_and_audit_survives(self):
+        bad=prices(131);bad.iloc[0,2]=101
+        fixed=prices(131)
+        with patch('main.yf.Ticker') as ticker, patch('builtins.print'):
+            ticker.return_value.history.side_effect=[bad,fixed]
+            df=main.fetch_prices('TEST','2y')
+            self.assertTrue(ticker.return_value.history.call_args.kwargs['repair'])
+            self.assertEqual(df.attrs['recovery']['changed_rows'],1)
+            self.assertEqual(df.attrs['recovery']['changes'][0]['before']['Low'],101)
+            _,q=main.prepare_prices(df,now=df.index[-1])
+            self.assertEqual(q['recovery']['status'],'recovered')
+            self.assertTrue(any('복구' in w for w in q['warnings']))
+
+    def test_ohlc_repair_unresolved(self):
+        bad=prices();bad.iloc[0,2]=101
+        with patch('main.yf.Ticker') as ticker, patch('builtins.print'):
+            ticker.return_value.history.side_effect=[bad,bad]
+            with self.assertRaisesRegex(RuntimeError,'복구 후에도 검증 실패'):
+                main.fetch_prices('TEST','2y')
+            self.assertEqual(ticker.return_value.history.call_count,2)
+
+    def test_repair_network_failure(self):
+        bad=prices();bad.iloc[0,2]=101
+        with patch('main.yf.Ticker') as ticker, patch('builtins.print'):
+            ticker.return_value.history.side_effect=[bad,RuntimeError('offline')]
+            with self.assertRaisesRegex(RuntimeError,'복구 조회 실패'):
+                main.fetch_prices('TEST','2y')
+
+    def test_missing_price_repair(self):
+        bad=prices();bad.iloc[0,0]=float('nan')
+        with patch('main.yf.Ticker') as ticker, patch('builtins.print'):
+            ticker.return_value.history.side_effect=[bad,prices()]
+            df=main.fetch_prices('TEST','2y')
+            self.assertIsNone(df.attrs['recovery']['changes'][0]['before']['Open'])
+
+    def test_short_history_not_retried(self):
+        with patch('main.yf.Ticker') as ticker:
+            ticker.return_value.history.return_value=prices(20)
+            with self.assertRaises(ValueError):main.fetch_prices('TEST','1mo')
+            self.assertEqual(ticker.return_value.history.call_count,1)
+
+    def test_repair_added_dates_excluded_and_logged(self):
+        bad=prices();bad.iloc[0,2]=101
+        repaired=prices(131)
+        with patch('main.yf.Ticker') as ticker, patch('builtins.print'):
+            ticker.return_value.history.side_effect=[bad,repaired]
+            result=main.fetch_prices('TEST','2y')
+            self.assertTrue(result.index.equals(bad.index))
+            self.assertEqual(result.attrs['recovery']['excluded_added_dates'],[repaired.index[-1].isoformat()])
+
+    def test_repair_cannot_drop_invalid_row(self):
+        bad=prices(131);bad.iloc[0,2]=101
+        with patch('main.yf.Ticker') as ticker, patch('builtins.print'):
+            ticker.return_value.history.side_effect=[bad,bad.iloc[1:]]
+            with self.assertRaisesRegex(RuntimeError,'날짜가 달라졌습니다'):
+                main.fetch_prices('TEST','2y')
+
     def test_current_day_excluded_and_age_warning(self):
         x=prices(131)
         df,q=main.prepare_prices(x,now=x.index[-1])
