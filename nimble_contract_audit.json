@@ -1,0 +1,23 @@
+{
+  "checked_at": "2026-10-06T02:25:53.394970+00:00",
+  "contract_url": "https://huggingface.co/bespokelabs/Bespoke-Nimble-9B/resolve/main/schema_config.json",
+  "prompt_url": "https://huggingface.co/bespokelabs/Bespoke-Nimble-9B/resolve/main/parallel_schema.py",
+  "contract_sha256": "8270da0e2ed5fdaad186377876d3ebc702b8bd551a13732a379523791d064da5",
+  "parallel_source_sha256": "a0a0f94d0f65e972bc20d088678ad3d595ff1c42b9c0d78f96034526303f63fc",
+  "declared_prompt_sha256": "a0a0f94d0f65e972bc20d088678ad3d595ff1c42b9c0d78f96034526303f63fc",
+  "prompt_source_hash_matches": true,
+  "system_prompt_matches": true,
+  "declared_base_model": "Qwen/Qwen3.5-9B",
+  "declared_base_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+  "candidate_codes_first_3": [
+    "A",
+    "B",
+    "C"
+  ],
+  "candidate_ids_first_3": [
+    32,
+    33,
+    34
+  ],
+  "local_gguf_training_revision_verified": false
+}

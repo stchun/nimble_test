@@ -1,0 +1,13 @@
+{
+  "split_date": "2026-01-01",
+  "horizon": 5,
+  "step": 20,
+  "threshold": 1.0,
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "datasets": [
+    {"ticker": "000660.KS", "name": "SK hynix", "currency": "KRW", "prices": "runs/e3a549f369dd4203b77cffe9dcc08c3c/prices.csv", "previously_observed": true},
+    {"ticker": "005930.KS", "name": "Samsung Electronics", "currency": "KRW", "period": "2y", "previously_observed": false},
+    {"ticker": "MSFT", "name": "Microsoft", "currency": "USD", "period": "2y", "previously_observed": false}
+  ]
+}

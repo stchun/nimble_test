@@ -123,3 +123,14 @@
 
 - [x] 동일 입력 CSV와 실제 Nimble로 전체 평가 재실행 완료: 70개 표본, 오류 없이 결과 저장.
 - 결과: runs/evaluations/690c8fd6f11e43a4981d39bb77d28d27/result.json. 모델 판단 53/70(75.71%), 판단한 표본의 방향 일치율 35.85%, 규칙 방향 일치율 25.71%. 수익률을 뜻하지 않음.
+
+
+## 평가 후속 개선 완료 (2026-10-06)
+
+- [x] 전체/단일/선택지 순서 변경 스키마 진단 18회 및 단일 필드 CLI 기본값 적용.
+- [x] 방향 objective와 행동 objective 분리 및 고정 클래스·동일 표본·클래스별 지표 확장.
+- [x] 시간 순서 분할과 경계 관측 표본 제외, 3종목·2목표의 실제 모델 평가 108회 완료.
+- [x] 거래비용·포지션·일별 최대 낙폭을 포함한 long/cash 백테스트 구현 및 실데이터 실행.
+- [x] 회귀/통합 테스트 46개 통과. 상세 결과와 한계는 [EVALUATION_ANALYSIS.md](EVALUATION_ANALYSIS.md)에 기록.
+
+추가된 도구: diagnose_schema.py, benchmark.py, benchmark_manifest.json, backtest.py. 공식 계약 점검 근거는 nimble_contract_audit.json에 기록했습니다. 새 시세를 기다리는 prospective 평가와 로컬 GGUF의 정확한 학습 revision 확인은 별도 검증 과제로 남습니다.

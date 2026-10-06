@@ -67,7 +67,7 @@ JSON에는 스키마, 시스템 프롬프트, 필드별 프롬프트 해시, 입
 
 ## 과거 시점별 평가
 
-고정 CSV를 사용해 각 기준일까지의 데이터로 지표와 컨텍스트를 만들고, 규칙 기반 신호 또는 모델의 action을 비교합니다.
+고정 CSV를 사용해 각 기준일까지의 데이터로 지표와 컨텍스트를 만들고, 규칙 기반 신호 또는 모델의 방향 예측을 비교합니다. 매매 행동은 --objective action으로 별도 평가합니다.
 
 ```bash
 uv run evaluate.py --prices runs/RUN_ID/prices.csv --ticker AAPL --name Apple --currency USD
@@ -76,13 +76,13 @@ uv run evaluate.py --prices runs/RUN_ID/prices.csv --ticker AAPL --currency USD 
 
 - `--with-model`이 없으면 네트워크 없이 규칙 기반 평가만 실행합니다.
 - `--horizon`은 미래 관측 거래일 수, `--step`은 평가 간격, `--threshold`는 중립 구간의 퍼센트 기준입니다.
-- 다음 거래일 시가부터 horizon번째 거래일 종가까지의 가격 변화가 threshold 초과면 BUY, 음의 threshold 미만이면 SELL, 나머지는 HOLD 라벨입니다.
+- 다음 거래일 시가부터 horizon번째 거래일 종가까지의 가격 변화가 threshold 초과면 UP, 음의 threshold 미만이면 DOWN, 나머지는 FLAT 라벨입니다. action 모드의 기존 라벨은 BUY/SELL/HOLD의 방향 proxy로 남습니다.
 - 규칙은 종가/SMA20/SMA60의 정렬, MACD 히스토그램 부호와 RSI 구간으로 BUY/SELL을 판단하며 나머지는 HOLD입니다.
 - 결과는 방향 라벨 일치율과 모델 판단 비율(coverage)입니다. 보류한 모델 결과는 모델 일치율 분모에서 제외하며 coverage를 함께 보고합니다.
 - 기본 저장 위치는 `runs/evaluations/UUID/`입니다. 평가 결과, 설정, 입력 스냅샷과 두 Python 코드도 저장합니다.
 - 저장된 `result.json`에서 시장 시간대를 읽습니다. 독립 CSV는 `--timezone Asia/Seoul`처럼 지정할 수 있습니다.
 
-이는 포트폴리오 수익률 백테스트가 아닙니다. 거래비용·슬리피지·보유 포지션을 반영하지 않으며, step < horizon이면 관측 구간이 겹칩니다. 수정주가의 사후 수정과 모델 학습 데이터의 미래 정보 또는 과거 데이터 기억도 통제하지 않습니다.
+direction 결과는 포트폴리오 수익률 백테스트가 아닙니다. action의 비용·포지션 백테스트는 아래 후속 평가 절을 참고하세요. 방향 지표에는 거래비용·슬리피지·보유 포지션을 반영하지 않으며, step < horizon이면 관측 구간이 겹칩니다. 수정주가의 사후 수정과 모델 학습 데이터의 미래 정보 또는 과거 데이터 기억도 통제하지 않습니다.
 
 ## 검증
 
@@ -99,3 +99,43 @@ uv run python -B -m unittest discover -s tests -v
 - `tests/`: 회귀 및 통합 테스트
 - `PROJECT_REVIEW.md`: 최초 분석과 단계별 완료 기록
 - `pyproject.toml`, `uv.lock`: 프로젝트 의존성
+
+## 후속 평가: 방향 분류와 매매 행동 분리
+
+`main.py`와 `evaluate.py`는 기본적으로 요청 필드만 포함한 스키마를 전달합니다. 전체 스키마는 `--schema-scope full`로 비교할 수 있습니다. 실패 사례 4건에서 전체 스키마의 D 생성이 단일 action 스키마에서 사라졌지만, 모든 데이터에서 같은 현상이 보장되는 것은 아닙니다.
+
+평가 CLI의 기본값은 이제 `--objective direction`입니다. 라벨은 UP/FLAT/DOWN이며 미래 horizon과 중립 threshold가 프롬프트에도 명시됩니다. `--objective action`은 BUY/HOLD/SELL 행동을 출력하고 long/cash 백테스트도 저장합니다. action의 기존 방향 일치율은 행동의 정답을 나타내는 것이 아니므로 legacy proxy로 표시됩니다. 방향 신호를 자동으로 매매 신호로 전환하지 않습니다.
+
+```bash
+uv run python evaluate.py --prices runs/RUN_ID/prices.csv --ticker 000660.KS --currency KRW --with-model --objective direction --split-date 2026-01-01
+uv run python evaluate.py --prices runs/RUN_ID/prices.csv --ticker 000660.KS --currency KRW --with-model --objective action --split-date 2026-01-01 --fee-bps 10 --slippage-bps 5
+```
+
+`metrics`에는 고정 라벨 비교, 혼동행렬(행=예측/열=실제), 클래스별 precision/recall/F1, balanced accuracy와 coverage가 있습니다. 모델 지표는 유효 예측 표본에 대한 값이며 같은 표본의 규칙 및 고정 라벨 지표도 함께 제공합니다.
+
+`--split-date` 이전은 development, 이후는 holdout입니다. 미래 관측 종가가 분할 경계를 넘는 개발 표본은 purged로 제외합니다. 지표 계산에는 기준일까지의 전체 과거 시세를 사용할 수 있습니다. 이미 확인한 과거 기간을 분할한다고 새 미관측 검증 자료가 되는 것은 아닙니다.
+
+### 백테스트 가정
+
+- 매수 신호: 전액 주식 진입. 매도 신호: 전액 현금 청산. 공매도 없음.
+- HOLD 및 판단 보류: 기존 포지션 유지. 최초 포지션은 현금.
+- 체결: 판단 다음 거래일 시가. 구간 마지막에는 종가로 강제 청산.
+- 비용: 편도 수수료 10bps, 슬리피지 5bps 기본값. 1bps=0.01%이며 실제 거래비용으로 추정한 값이 아닌 가정입니다.
+- 평가 분할마다 현금으로 새로 시작. 종가 기준 equity curve·최대 낙폭·체결 내역·동일 기간 buy-and-hold 비교 저장.
+- 세금·현금 이자·배당 현금흐름을 별도 반영하지 않고 수정 OHLC를 사용합니다. 장중 낙폭/실제 유동성도 반영하지 않습니다.
+
+### 여러 종목의 고정 설정 평가
+
+```bash
+uv run python benchmark.py --manifest benchmark_manifest.json --with-model
+```
+
+매니페스트는 SK하이닉스 기존 CSV, 삼성전자와 Microsoft의 새 2년 시세를 사용합니다. 설정은 실행 전에 고정하며 최적화하지 않습니다. 기본 horizon=5·step=20·threshold=1%, 검증 시작일=2026-01-01입니다. 실행 중 표본 진행 상황을 출력하고 각 종목/목표가 완료될 때마다 summary.json을 저장합니다. 결과는 `runs/benchmarks/UUID/`에 저장됩니다. 기존 CSV 경로가 없다면 매니페스트의 해당 항목을 현재 CSV로 수정하거나 prices 대신 period를 지정하세요.
+
+과거 D 생성 진단을 반복하려면 다음을 사용합니다.
+
+```bash
+uv run python diagnose_schema.py --evaluation runs/evaluations/RUN_ID/result.json --samples 6
+```
+
+선정된 실패/정상 표본에서 전체·단일·선택지 순서 변경 스키마를 비교하고 원본 응답을 보존합니다. 이는 원인 진단이며 성능 검증이 아닙니다.

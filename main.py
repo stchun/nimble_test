@@ -328,7 +328,10 @@ def classify(host: str, model: str, context: str, schema: dict, field: str,
     }
     data = request_json(f"{host.rstrip('/')}/api/generate", body, timeout, retries)
 
-    return parse_classification(data, schema, field)
+    result = parse_classification(data, schema, field)
+    result["prompt_sha256"] = fingerprint(body["prompt"])
+    result["schema_sha256"] = fingerprint(schema)
+    return result
 
 
 def parse_classification(data: dict, schema: dict, field: str,
@@ -416,7 +419,7 @@ def make_record(ticker, metadata, df, ind, context, results, settings, quality,
             "model_identity": identity,
             "schema": SCHEMA, "schema_sha256": fingerprint(SCHEMA),
             "system_prompt": SYSTEM_PROMPT,
-            "prompt_sha256": {field: fingerprint(build_prompt(context, SCHEMA, field)) for field in SCHEMA},
+            "prompt_sha256": {field: results.get(field, {}).get("prompt_sha256") or fingerprint(build_prompt(context, SCHEMA, field)) for field in SCHEMA},
             "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "python_version": sys.version, "pandas_version": pd.__version__,
             "yfinance_version": yf.__version__,
@@ -436,6 +439,9 @@ def save_record(directory: Path, df: pd.DataFrame, record: dict) -> Path:
     evaluation_source = Path(__file__).with_name("evaluate.py")
     if "evaluation" in record and evaluation_source.exists():
         (run_dir / "evaluate.py").write_bytes(evaluation_source.read_bytes())
+    backtest_source = Path(__file__).with_name("backtest.py")
+    if "evaluation" in record and backtest_source.exists():
+        (run_dir / "backtest.py").write_bytes(backtest_source.read_bytes())
     return run_dir
 
 
@@ -449,6 +455,7 @@ def main():
     p.add_argument("--include-current-day", action="store_true")
     p.add_argument("--output-dir", type=Path, help="결과와 입력 시세 스냅샷 저장 디렉터리")
     p.add_argument("--period", default="2y", help="수집 기간 (yfinance period)")
+    p.add_argument("--schema-scope", choices=["single", "full"], default="single")
     p.add_argument("--model", default="nimble")
     p.add_argument("--host", default="http://localhost:11434")
     p.add_argument("--json", action="store_true", help="결과를 JSON 으로 출력")
@@ -462,7 +469,8 @@ def main():
         metadata = resolve_metadata(args.ticker, args.name, args.currency)
         ind = indicators(df)
         context = build_context(metadata["name"], args.ticker, ind, metadata["currency"])
-        results = {field: classify(args.host, args.model, context, SCHEMA, field,
+        results = {field: classify(args.host, args.model, context,
+                                  {field: SCHEMA[field]} if args.schema_scope == "single" else SCHEMA, field,
                                   args.timeout, args.retries) for field in SCHEMA}
         identity = model_identity(args.host, args.model, args.timeout, args.retries)
         record = make_record(args.ticker, metadata, df, ind, context, results,
