@@ -1,0 +1,58 @@
+{
+  "horizon": 5,
+  "step": 5,
+  "window_sessions": 40,
+  "end_date": "2026-09-17",
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "arms": [
+    {
+      "name": "aligned_blind_100",
+      "aware": false,
+      "cap": 1.0
+    },
+    {
+      "name": "aligned_aware_100",
+      "aware": true,
+      "cap": 1.0
+    },
+    {
+      "name": "aligned_aware_50",
+      "aware": true,
+      "cap": 0.5
+    }
+  ],
+  "datasets": [
+    {
+      "ticker": "000660.KS",
+      "name": "SK hynix",
+      "currency": "KRW",
+      "prices": "runs/benchmarks/33b0729c024848e4adb5de79e044acc2/verified/e2608ceb2ec24b84ade4b2bdfa8466f7/prices.csv",
+      "reference_result": "runs/benchmarks/33b0729c024848e4adb5de79e044acc2/verified/e2608ceb2ec24b84ade4b2bdfa8466f7/result.json",
+      "previously_observed": true
+    },
+    {
+      "ticker": "005930.KS",
+      "name": "Samsung Electronics",
+      "currency": "KRW",
+      "prices": "runs/benchmarks/33b0729c024848e4adb5de79e044acc2/verified/8abad47216794005b6e098b2a1fbc4b7/prices.csv",
+      "reference_result": "runs/benchmarks/33b0729c024848e4adb5de79e044acc2/verified/8abad47216794005b6e098b2a1fbc4b7/result.json",
+      "previously_observed": true
+    },
+    {
+      "ticker": "MSFT",
+      "name": "Microsoft",
+      "currency": "USD",
+      "prices": "runs/benchmarks/33b0729c024848e4adb5de79e044acc2/verified/a4039c9cbf0c434994a83a01bf8f1511/prices.csv",
+      "reference_result": "runs/benchmarks/33b0729c024848e4adb5de79e044acc2/verified/a4039c9cbf0c434994a83a01bf8f1511/result.json",
+      "previously_observed": true
+    },
+    {
+      "ticker": "SPY",
+      "name": "SPDR S&P 500 ETF",
+      "currency": "USD",
+      "period": "2y",
+      "previously_observed": false
+    }
+  ]
+}

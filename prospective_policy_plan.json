@@ -1,0 +1,23 @@
+{
+  "plan_created_date": "2026-10-06",
+  "status": "awaiting_future_data",
+  "eligible_decision_dates": "strictly after 2026-10-06, completed exchange sessions only",
+  "purpose": "Prospective comparison; record signals before next-session entry and before future outcomes occur",
+  "datasets": ["000660.KS", "005930.KS", "MSFT", "SPY"],
+  "horizon_sessions": 5,
+  "decision_interval_sessions": 5,
+  "observation_sessions": 60,
+  "initial_cash": 1,
+  "fee_bps_per_side": 10,
+  "slippage_bps_per_side": 5,
+  "arms": ["aligned_blind_100", "aligned_aware_100", "aligned_aware_50"],
+  "comparators": ["buy_hold_100", "passive_50_cash_50", "same_signals_cap_50"],
+  "constraints": [
+    "Freeze source and schema hashes before the first prospective prediction",
+    "Append timestamped decision context, actual portfolio state, model identity and response before entry",
+    "Do not regenerate missed historical signals and call them prospective",
+    "Do not optimize parameters on prospective outcomes",
+    "Maintain portfolios causally using completed next-session opens",
+    "No automatic scheduling or order execution is configured"
+  ]
+}

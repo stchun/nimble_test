@@ -134,3 +134,13 @@
 - [x] 회귀/통합 테스트 46개 통과. 상세 결과와 한계는 [EVALUATION_ANALYSIS.md](EVALUATION_ANALYSIS.md)에 기록.
 
 추가된 도구: diagnose_schema.py, benchmark.py, benchmark_manifest.json, backtest.py. 공식 계약 점검 근거는 nimble_contract_audit.json에 기록했습니다. 새 시세를 기다리는 prospective 평가와 로컬 GGUF의 정확한 학습 revision 확인은 별도 검증 과제로 남습니다.
+
+
+## 매매 정책 개선 검증 (2026-10-06)
+
+- [x] 5일 관측·재판단 정렬, 보유 상태 인과적 입력, 초기 50%/100% 진입 비교 및 고정 신호/비용 리플레이 구현.
+- [x] 기존 3종목과 신규 SPY에서 실제 모델 판단 96건 완료. 각 전략 수익률·낙폭·비중·수동 보유 비교 저장.
+- [x] 테스트 53개 통과. 상세 기록: [UNDERPERFORMANCE_ANALYSIS.md](UNDERPERFORMANCE_ANALYSIS.md).
+- [ ] 실제 미래 시세를 이용한 prospective 60거래일 검증은 별도 계획에 고정했으며 미래 자료 대기.
+
+상태 정보/포지션 축소가 예측 우위를 보장하지 않았으므로 평가 도구를 추가하고 기존 기본 매매 정책을 성능 개선으로 간주해 교체하지 않았습니다.
